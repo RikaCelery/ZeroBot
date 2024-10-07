@@ -202,6 +202,15 @@ func CheckGroup(grpId ...int64) Rule {
 	}
 }
 
+func CheckArgs(pred func(ctx *Ctx, args []string) bool) Rule {
+	return func(ctx *Ctx) bool {
+		if len(ctx.State["args"].(string)) == 0 {
+			return pred(ctx, make([]string, 0))
+		}
+		return pred(ctx, ParseShell(ctx.State["args"].(string)))
+	}
+}
+
 // OnlyPrivate requires that the ctx.Event is private message
 func OnlyPrivate(ctx *Ctx) bool {
 	return ctx.Event.PostType == "message" && ctx.Event.DetailType == "private"
