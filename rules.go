@@ -85,23 +85,28 @@ func SuffixRule(suffixes ...string) Rule {
 // CommandRule check if the message is a command and trim the command name
 func CommandRule(commands ...string) Rule {
 	return func(ctx *Ctx) bool {
-		if len(ctx.Event.Message) == 0 || ctx.Event.Message[0].Type != "text" {
+		if len(ctx.Event.Message) == 0 {
 			return false
 		}
-		first := ctx.Event.Message[0]
-		firstMessage := first.Data["text"]
+		firstMessage := strings.TrimSpace(ctx.ExtractPlainText())
 		if !strings.HasPrefix(firstMessage, BotConfig.CommandPrefix) {
 			return false
 		}
 		cmdMessage := firstMessage[len(BotConfig.CommandPrefix):]
 		for _, command := range commands {
-			if strings.HasPrefix(cmdMessage, command) {
+			if strings.HasPrefix(cmdMessage, command+" ") || strings.TrimSpace(cmdMessage) == command {
 				ctx.State["command"] = command
-				arg := strings.TrimLeft(cmdMessage[len(command):], " ")
+				if strings.TrimSpace(cmdMessage) == command {
+					ctx.State["args"] = ""
+					log.Debugf("[matcher.CommandRule] triggered %s, args ", command)
+					return true
+				}
+				arg := strings.TrimLeft(cmdMessage[len(command)+1:], " ")
 				if len(ctx.Event.Message) > 1 {
 					arg += ctx.Event.Message[1:].ExtractPlainText()
 				}
 				ctx.State["args"] = arg
+				log.Debugf("[matcher.CommandRule] triggered %s, arg %s", command, arg)
 				return true
 			}
 		}
