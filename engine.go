@@ -77,16 +77,8 @@ func (e *Engine) On(typ string, rules ...Rule) *Matcher {
 func OnMessage(rules ...Rule) *Matcher { return On("message", rules...) }
 
 // OnMessage 消息触发器
-func (e *Engine) OnMessage(rules ...PatternSegment) *Matcher {
-	return e.On("message", PatternRule(rules...))
-}
-
-// OnPattern 消息模板触发器
-func OnPattern(rules ...PatternSegment) *Matcher { return On("message", PatternRule(rules...)) }
-
-// OnPattern 消息模板触发器
-func (e *Engine) OnPattern(rules ...PatternSegment) *Matcher {
-	return e.On("message", PatternRule(rules...))
+func (e *Engine) OnMessage(rules ...Rule) *Matcher {
+	return e.On("message", rules...)
 }
 
 // OnNotice 系统提示触发器
