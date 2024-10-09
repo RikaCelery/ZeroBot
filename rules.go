@@ -239,8 +239,9 @@ func patternMatch(ctx *Ctx, pattern []PatternSegment, msgs []message.MessageSegm
 		return false
 	}
 	for i := 0; i < len(pattern); i++ {
-		if pattern[i].Type != (msgs[i].Type) || !pattern[i].Matcher(ctx, msgs[i]) {
-			log.Debugf("[matcher.pattern] not match(%v) %s != %s(msg) at %d", pattern[i].Matcher(ctx, msgs[i]), pattern[i].Type, msgs[i], i)
+		matched := pattern[i].Matcher(ctx, msgs[i])
+		if pattern[i].Type != (msgs[i].Type) || !matched {
+			log.Debugf("[matcher.pattern] not match(%v) %s != %s(msg) at %d", matched, pattern[i].Type, msgs[i], i)
 			return false
 		}
 	}
