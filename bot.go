@@ -397,23 +397,25 @@ loop:
 func preprocessMessageEvent(e *Event) {
 	msgs := message.ParseMessage(e.NativeMessage)
 
-	for i := 0; i < len(msgs)-1; i++ {
-		if msgs[i].Type == "at" && msgs[i+1].Type == "text" {
-			msgs[i+1].Data["text"] = msgs[i+1].Data["text"][1:]
+	if len(msgs) > 0 {
+		filtered := make([]message.MessageSegment, 0, len(msgs))
+		// trim space after at and remove empty text segment
+		for i := range msgs {
+			if i < len(msgs)-1 && msgs[i].Type == "at" && msgs[i+1].Type == "text" {
+				msgs[i+1].Data["text"] = strings.TrimLeft(msgs[i+1].Data["text"], " ")
+			}
+			if msgs[i].Type != "text" || msgs[i].Data["text"] != "" {
+				filtered = append(filtered, msgs[i])
+			}
 		}
+		e.Message = filtered
 	}
-	// remove empty text segment
-	for i := 0; i < len(msgs); {
-		if msgs[i].Type == "text" && msgs[i].Data["text"] == "" {
-			log.Debugf("[matcher.pattern] remove empty text segment at %d", i)
-			msgs = append(msgs[:i], msgs[i+1:]...)
-		} else {
-			i++
-		}
-	}
-	e.Message = msgs
+
 	processAt := func() { // 处理是否at机器人
 		e.IsToMe = false
+		if len(e.Message) == 0 {
+			return
+		}
 		for i, m := range e.Message {
 			if m.Type == "at" {
 				qq, _ := strconv.ParseInt(m.Data["qq"], 10, 64)
