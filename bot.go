@@ -318,6 +318,7 @@ loop:
 				}
 				break
 			}
+
 		}
 
 		// mid handler
@@ -403,7 +404,7 @@ func preprocessMessageEvent(e *Event) {
 	}
 	var filtered = make([]message.MessageSegment, 0, len(msgs))
 	// remove empty text segment
-	for i := 0; i < len(msgs); {
+	for i := 0; i < len(msgs); i++ {
 		if msgs[i].Type != "text" || msgs[i].Data["text"] != "" {
 			filtered = append(filtered, msgs[i])
 		}
