@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	KEY_REGEX   = "regex_matched"
 	KEY_PATTERN = "pattern_matched"
 )
 
@@ -134,124 +133,208 @@ func RegexRule(regexPattern string) Rule {
 }
 
 type PatternSegment struct {
-	Type    string
-	Matcher func(ctx *Ctx, msg message.MessageSegment) bool
+	Type     string
+	Optional bool
+	Matcher  func(ctx *Ctx, msg message.MessageSegment) bool
 }
+
+// SetOptional set Pattern is optional, is v is empty, Optional will be true
+func (p *PatternSegment) SetOptional(v ...bool) *PatternSegment {
+	if len(v) == 1 {
+		p.Optional = v[0]
+	} else {
+		p.Optional = true
+	}
+	return p
+}
+
 type Pattern []PatternSegment
 
-// PatternText KEY_PATTERN type []string
-func PatternText(regex string) PatternSegment {
+// PatternMatched save PatternRule context
+type PatternMatched map[string]interface{}
+
+func (p PatternMatched) AsText() PatternTextMatched {
+	if _, ok := p["groups"]; !ok {
+		return PatternTextMatched{}
+	}
+	return PatternTextMatched{HasValue: true, Groups: p["groups"].([]string)}
+}
+func (p PatternMatched) AsAt() PatternAtMatched {
+	if _, ok := p["qq"]; !ok {
+		return PatternAtMatched{}
+	}
+	return PatternAtMatched{HasValue: true, UID: p["qq"].(int64)}
+}
+func (p PatternMatched) AsImage() PatternImageMatched {
+	if _, ok := p["file"]; !ok {
+		return PatternImageMatched{}
+	}
+	return PatternImageMatched{HasValue: true, File: p["file"].(string)}
+}
+func (p PatternMatched) AsReply() PatternReplyMatched {
+	if _, ok := p["id"]; !ok {
+		return PatternReplyMatched{}
+	}
+	return PatternReplyMatched{HasValue: true, MessageID: p["id"].(string)}
+}
+
+// PatternImageMatched
+// HasValue: false if not matched in optional Pattern
+type PatternImageMatched = struct {
+	HasValue bool
+	File     string
+}
+
+// PatternAtMatched
+// HasValue: false if not matched in optional Pattern
+type PatternAtMatched = struct {
+	HasValue bool
+	UID      int64
+}
+
+// PatternTextMatched
+// HasValue: false if not matched in optional Pattern
+type PatternTextMatched = struct {
+	HasValue bool
+	Groups   []string
+}
+
+// PatternReplyMatched
+// HasValue: false if not matched in optional Pattern
+type PatternReplyMatched = struct {
+	HasValue  bool
+	MessageID string
+}
+
+// PatternText type zero.PatternTextMatched
+func PatternText(regex string) *PatternSegment {
 	re := regexp.MustCompile(regex)
-	return PatternSegment{
+	return &PatternSegment{
 		Type: "text",
 		Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
 			s := msg.Data["text"]
 			s = strings.Trim(s, " \n\r\t")
 			matchString := re.MatchString(s)
 			if matchString {
-				if _, ok := ctx.State["pattern_matched"]; !ok {
-					ctx.State["pattern_matched"] = make([]interface{}, 0)
+				if _, ok := ctx.State[KEY_PATTERN]; !ok {
+					ctx.State[KEY_PATTERN] = make([]PatternMatched, 0, 1)
 				}
 
-				ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), re.FindStringSubmatch(s))
+				ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]PatternMatched),
+					PatternMatched{
+						"groups": re.FindStringSubmatch(s),
+					})
 			}
 			return matchString
 		},
 	}
 }
-func patternAt(target any) PatternSegment {
-	switch t := target.(type) {
-	case int64:
-		return PatternSegment{
-			Type: "at",
-			Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
-				b := msg.Data["qq"] == strconv.FormatInt(t, 10)
-				if b {
-					if _, ok := ctx.State["pattern_matched"]; !ok {
-						ctx.State["pattern_matched"] = make([]interface{}, 0)
-					}
-					ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), msg.Data["qq"])
-				}
-				return b
-			},
-		}
-	case int:
-		return PatternSegment{
-			Type: "at",
-			Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
-				b := msg.Data["qq"] == strconv.FormatInt(int64(t), 10)
-				if b {
-					if _, ok := ctx.State["pattern_matched"]; !ok {
-						ctx.State["pattern_matched"] = make([]interface{}, 0)
-					}
-					ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), msg.Data["qq"])
-				}
-				return b
-			}}
-	case string:
-		return PatternSegment{
-			Type: "at",
-			Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
-				b := msg.Data["name"] == t
-				if b {
-					if _, ok := ctx.State["pattern_matched"]; !ok {
-						ctx.State["pattern_matched"] = make([]interface{}, 0)
-					}
-					ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), msg.Data["name"])
-				}
-				return b
-			}}
-	default:
-		panic("unsupported type")
-	}
-}
 
-// PatternAt KEY_PATTERN type string
-func PatternAt() PatternSegment {
-	return PatternSegment{
+// PatternAt type zero.PatternAtMatched
+func PatternAt() *PatternSegment {
+	return &PatternSegment{
 		Type: "at",
 		Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
-			if _, ok := ctx.State["pattern_matched"]; !ok {
-				ctx.State["pattern_matched"] = make([]interface{}, 0)
+			if _, ok := ctx.State[KEY_PATTERN]; !ok {
+				ctx.State[KEY_PATTERN] = make([]PatternMatched, 0, 1)
 			}
-			ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), msg.Data["qq"])
+			qq, _ := strconv.ParseInt(msg.Data["qq"], 10, 64)
+			ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]PatternMatched),
+				PatternMatched{
+					"qq": qq,
+				})
 			return true
 		},
 	}
 }
 
-// PatternImage KEY_PATTERN type msg.Data
-func PatternImage() PatternSegment {
-	return PatternSegment{
+// PatternImage type zero.PatternImageMatched
+func PatternImage() *PatternSegment {
+	return &PatternSegment{
 		Type: "image",
 		Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
-			if _, ok := ctx.State["pattern_matched"]; !ok {
-				ctx.State["pattern_matched"] = make([]interface{}, 0)
+			if _, ok := ctx.State[KEY_PATTERN]; !ok {
+				ctx.State[KEY_PATTERN] = make([]PatternMatched, 0, 1)
 			}
-			ctx.State["pattern_matched"] = append(ctx.State["pattern_matched"].([]interface{}), msg.Data)
+			ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]PatternMatched), PatternMatched{
+				"file": msg.Data["file"],
+			})
 			return true
 		},
 	}
 }
-func patternMatch(ctx *Ctx, pattern []PatternSegment, msgs []message.MessageSegment) bool {
-	if len(pattern) != len(msgs) {
-		log.Debugf("[matcher.pattern] size not match %d != %d(msg)", len(pattern), len(msgs))
+
+// PatternReply type zero.PatternReplyMatched
+func PatternReply() *PatternSegment {
+	return &PatternSegment{
+		Type: "reply",
+		Matcher: func(ctx *Ctx, msg message.MessageSegment) bool {
+			if _, ok := ctx.State[KEY_PATTERN]; !ok {
+				ctx.State[KEY_PATTERN] = make([]PatternMatched, 0, 1)
+			}
+			ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]PatternMatched), PatternMatched{
+				"id": msg.Data["id"],
+			})
+			return true
+		},
+	}
+}
+func containsOptional(pattern []*PatternSegment) bool {
+	for _, p := range pattern {
+		if p.Optional {
+			return true
+		}
+	}
+	return false
+}
+func patternMatch(ctx *Ctx, pattern []*PatternSegment, msgs []message.MessageSegment) bool {
+	if !containsOptional(pattern) && len(pattern) != len(msgs) {
 		return false
 	}
-	for i := 0; i < len(pattern); i++ {
-		matched := pattern[i].Matcher(ctx, msgs[i])
-		if pattern[i].Type != (msgs[i].Type) || !matched {
-			log.Debugf("[matcher.pattern] not match(%v) %s != %s(msg) at %d", matched, pattern[i].Type, msgs[i], i)
+	i := 0
+	j := 0
+	for i < len(pattern) && j < len(msgs) {
+		if pattern[i].Type != (msgs[j].Type) || !pattern[i].Matcher(ctx, msgs[j]) {
+			if pattern[i].Optional {
+				if _, ok := ctx.State[KEY_PATTERN]; !ok {
+					ctx.State[KEY_PATTERN] = make([]PatternMatched, 0, 1)
+				}
+				ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]PatternMatched), PatternMatched{})
+				i++
+				continue
+			}
 			return false
 		}
+		i++
+		j++
 	}
 	return true
 }
 
 // PatternRule check if the message can be matched by the pattern
-func PatternRule(pattern ...PatternSegment) Rule {
+func PatternRule(pattern ...*PatternSegment) Rule {
 	return func(ctx *Ctx) bool {
-		return patternMatch(ctx, pattern, ctx.Event.Message)
+		// copy messages
+		msgs := make([]message.MessageSegment, 0, len(ctx.Event.Message))
+		msgs = append(msgs, ctx.Event.Message[0])
+		for i := 1; i < len(ctx.Event.Message); i++ {
+			if ctx.Event.Message[i-1].Type == "reply" && ctx.Event.Message[i].Type == "at" {
+				// [reply][at]
+				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"])
+				if reply.MessageId.ID() == 0 || reply.Sender == nil || reply.Sender.ID == 0 {
+					// failed to get history message
+					msgs = append(msgs, ctx.Event.Message[i])
+					continue
+				}
+				if strconv.FormatInt(reply.Sender.ID, 10) != ctx.Event.Message[i].Data["qq"] {
+					// @ other user in reply
+					msgs = append(msgs, ctx.Event.Message[i])
+				}
+			} else {
+				msgs = append(msgs, ctx.Event.Message[i])
+			}
+		}
+		return patternMatch(ctx, pattern, msgs)
 	}
 }
 
