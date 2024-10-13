@@ -1,195 +1,279 @@
 package zero
 
 import (
-	"github.com/wdvxdr1123/ZeroBot/message"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/wdvxdr1123/ZeroBot/message"
 )
+
+const (
+	KeyPattern = "pattern_matched"
+)
+
+// AsRule build PatternRule
+func (p *Pattern) AsRule() Rule {
+	return func(ctx *Ctx) bool {
+		if len(ctx.Event.Message) == 0 {
+			return false
+		}
+		// copy messages
+		msgs := make([]message.Segment, 0, len(ctx.Event.Message))
+		msgs = append(msgs, ctx.Event.Message[0])
+		shouldClean := false
+		for _, segment := range *p {
+			if segment.cleanRedundantAt {
+				shouldClean = true
+				break
+			}
+		}
+		for i := 1; i < len(ctx.Event.Message); i++ {
+			if shouldClean && ctx.Event.Message[i-1].Type == "reply" && ctx.Event.Message[i].Type == "at" {
+				// [reply][at]
+				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"])
+				if reply.MessageID.ID() != 0 && reply.Sender != nil && reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] {
+					continue
+				}
+			}
+			msgs = append(msgs, ctx.Event.Message[i])
+		}
+		return patternMatch(ctx, *p, msgs)
+	}
+}
 
 type Pattern []PatternSegment
 
 func NewPattern() *Pattern {
-	pattern := make(Pattern, 0)
+	pattern := make(Pattern, 0, 4)
 	return &pattern
 }
 
 type PatternSegment struct {
-	Type     string
-	Optional bool
-	Parse    func(msg *message.MessageSegment) *PatternParsed
+	typ              string
+	optional         bool
+	parse            func(msg *message.Segment) *PatternParsed
+	cleanRedundantAt bool // only for Reply
 }
 
-// SetOptional set previous segment is optional, is v is empty, Optional will be true
+// SetOptional set previous segment is optional, is v is empty, optional will be true
 // if Pattern is empty, panic
 func (p *Pattern) SetOptional(v ...bool) *Pattern {
 	if len(*p) == 0 {
 		panic("pattern is empty")
 	}
 	if len(v) == 1 {
-		(*p)[len(*p)-1].Optional = v[0]
+		(*p)[len(*p)-1].optional = v[0]
 	} else {
-		(*p)[len(*p)-1].Optional = true
+		(*p)[len(*p)-1].optional = true
 	}
 	return p
 }
 
 // PatternParsed PatternRule parse result
 type PatternParsed struct {
-	Valid bool
-	Value any
-	Msg   *message.MessageSegment
+	value any
+	msg   *message.Segment
 }
 
-func (p PatternParsed) GetText() []string {
-	if !p.Valid {
-		return make([]string, 0)
+// Text 获取正则表达式匹配到的文本数组
+func (p PatternParsed) Text() []string {
+	if p.value == nil {
+		return nil
 	}
-	return p.Value.([]string)
+	return p.value.([]string)
 }
-func (p PatternParsed) GetAt() string {
-	if !p.Valid {
+
+// At 获取被@者ID
+func (p PatternParsed) At() string {
+	if p.value == nil {
 		return ""
 	}
-	return p.Value.(string)
+	return p.value.(string)
 }
-func (p PatternParsed) GetImage() string {
-	if !p.Valid {
+
+// Image 获取图片URL
+func (p PatternParsed) Image() string {
+	if p.value == nil {
 		return ""
 	}
-	return p.Value.(string)
+	return p.value.(string)
 }
-func (p PatternParsed) GetReply() string {
-	if !p.Valid {
+
+// Reply 获取被回复的消息ID
+func (p PatternParsed) Reply() string {
+	if p.value == nil {
 		return ""
 	}
-	return p.Value.(string)
+	return p.value.(string)
+}
+
+// Raw 获取原始消息
+func (p PatternParsed) Raw() *message.Segment {
+	return p.msg
+}
+
+func NewPatternSegment(typ string, optional bool, parse func(msg *message.Segment) *PatternParsed, cleanRedundantAt ...bool) *PatternSegment {
+	clean := false
+	if len(cleanRedundantAt) > 0 {
+		clean = cleanRedundantAt[0]
+	}
+	return &PatternSegment{
+		typ:              typ,
+		optional:         optional,
+		parse:            parse,
+		cleanRedundantAt: clean,
+	}
 }
 
 // Text use regex to search a 'text' segment
 func (p *Pattern) Text(regex string) *Pattern {
 	re := regexp.MustCompile(regex)
-	pattern := PatternSegment{
-		Type: "text",
-		Parse: func(msg *message.MessageSegment) *PatternParsed {
+	pattern := NewPatternSegment(
+		"text", false, func(msg *message.Segment) *PatternParsed {
 			s := msg.Data["text"]
 			s = strings.Trim(s, " \n\r\t")
 			matchString := re.MatchString(s)
 			if matchString {
 				return &PatternParsed{
-					Valid: true,
-					Value: re.FindStringSubmatch(s),
-					Msg:   msg,
-				}
-			} else {
-				return &PatternParsed{
-					Valid: false,
-					Value: nil,
-					Msg:   nil,
+					value: re.FindStringSubmatch(s),
+					msg:   msg,
 				}
 			}
+
+			return &PatternParsed{
+				value: nil,
+				msg:   nil,
+			}
 		},
-	}
-	*p = append(*p, pattern)
+	)
+	*p = append(*p, *pattern)
 	return p
 }
 
 // At use regex to match an 'at' segment, if id is not empty, only match specific target
-func (p *Pattern) At(id ...string) *Pattern {
+func (p *Pattern) At(id ...message.ID) *Pattern {
 	if len(id) > 1 {
 		panic("at pattern only support one id")
 	}
-	pattern := PatternSegment{
-		Type: "at",
-		Parse: func(msg *message.MessageSegment) *PatternParsed {
-			if len(id) == 0 || len(id) == 1 && id[0] == msg.Data["qq"] {
+	pattern := NewPatternSegment(
+		"at", false, func(msg *message.Segment) *PatternParsed {
+			if len(id) == 0 || len(id) == 1 && id[0].String() == msg.Data["qq"] {
 				return &PatternParsed{
-					Valid: true,
-					Value: msg.Data["qq"],
-					Msg:   msg,
-				}
-			} else {
-				return &PatternParsed{
-					Valid: false,
-					Value: nil,
-					Msg:   nil,
+					value: msg.Data["qq"],
+					msg:   msg,
 				}
 			}
+
+			return &PatternParsed{
+				value: nil,
+				msg:   nil,
+			}
 		},
-	}
-	*p = append(*p, pattern)
+	)
+	*p = append(*p, *pattern)
 	return p
 }
 
 // Image use regex to match an 'at' segment, if id is not empty, only match specific target
 func (p *Pattern) Image() *Pattern {
-	pattern := PatternSegment{
-		Type: "image",
-		Parse: func(msg *message.MessageSegment) *PatternParsed {
+	pattern := NewPatternSegment(
+		"image", false, func(msg *message.Segment) *PatternParsed {
 			return &PatternParsed{
-				Valid: true,
-				Value: msg.Data["file"],
-				Msg:   msg,
+				value: msg.Data["file"],
+				msg:   msg,
 			}
 		},
-	}
-	*p = append(*p, pattern)
+	)
+	*p = append(*p, *pattern)
 	return p
 }
 
 // Reply type zero.PatternReplyMatched
-func (p *Pattern) Reply() *Pattern {
-	pattern := PatternSegment{
-		Type: "reply",
-		Parse: func(msg *message.MessageSegment) *PatternParsed {
-			return &PatternParsed{
-				Valid: true,
-				Value: msg.Data["id"],
-				Msg:   msg,
-			}
-		},
+func (p *Pattern) Reply(noCleanRedundantAt ...bool) *Pattern {
+	noClean := false
+	if len(noCleanRedundantAt) > 0 {
+		noClean = noCleanRedundantAt[0]
 	}
-	*p = append(*p, pattern)
+	pattern := NewPatternSegment(
+		"reply", false, func(msg *message.Segment) *PatternParsed {
+			return &PatternParsed{
+				value: msg.Data["id"],
+				msg:   msg,
+			}
+		}, !noClean,
+	)
+	*p = append(*p, *pattern)
 	return p
 }
-func containsOptional(pattern Pattern) bool {
+
+// Any match any segment
+func (p *Pattern) Any() *Pattern {
+	pattern := NewPatternSegment(
+		"any", false, func(msg *message.Segment) *PatternParsed {
+			parsed := PatternParsed{
+				value: nil,
+				msg:   msg,
+			}
+			switch {
+			case msg.Data["text"] != "":
+				parsed.value = msg.Data["text"]
+			case msg.Data["qq"] != "":
+				parsed.value = msg.Data["qq"]
+			case msg.Data["file"] != "":
+				parsed.value = msg.Data["file"]
+			case msg.Data["id"] != "":
+				parsed.value = msg.Data["id"]
+			default:
+				parsed.value = msg.Data
+			}
+			return &parsed
+		},
+	)
+	*p = append(*p, *pattern)
+	return p
+}
+
+func (s *PatternSegment) matchType(msg message.Segment) bool {
+	return s.typ == msg.Type || s.typ == "any"
+}
+func mustMatchAllPatterns(pattern Pattern) bool {
 	for _, p := range pattern {
-		if p.Optional {
-			return true
+		if p.optional {
+			return false
 		}
 	}
-	return false
+	return true
 }
-func patternMatch(ctx *Ctx, pattern Pattern, msgs []message.MessageSegment) bool {
-	if !containsOptional(pattern) && len(pattern) != len(msgs) {
+func patternMatch(ctx *Ctx, pattern Pattern, msgs []message.Segment) bool {
+	if mustMatchAllPatterns(pattern) && len(pattern) != len(msgs) {
 		return false
 	}
-	if _, ok := ctx.State[KEY_PATTERN]; !ok {
-		ctx.State[KEY_PATTERN] = make([]*PatternParsed, 0, 1)
-	}
+	patternState := make([]*PatternParsed, 0, 4)
 	i := 0
 	j := 0
 	for i < len(pattern) {
 		var parsed *PatternParsed
-		if j < len(msgs) && pattern[i].Type == (msgs[j].Type) {
-			parsed = pattern[i].Parse(&msgs[j])
+		if j < len(msgs) && pattern[i].matchType(msgs[j]) {
+			parsed = pattern[i].parse(&msgs[j])
 		} else {
 			parsed = &PatternParsed{
-				Valid: false,
-				Value: nil,
-				Msg:   nil,
+				value: nil,
+				msg:   nil,
 			}
 		}
-		if j >= len(msgs) || pattern[i].Type != (msgs[j].Type) || !parsed.Valid {
-			if pattern[i].Optional {
-				ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]*PatternParsed), parsed)
+		if j >= len(msgs) || !pattern[i].matchType(msgs[j]) || parsed.value == nil {
+			if pattern[i].optional {
+				patternState = append(patternState, parsed)
 				i++
 				continue
 			}
 			return false
 		}
-		ctx.State[KEY_PATTERN] = append(ctx.State[KEY_PATTERN].([]*PatternParsed), parsed)
+		patternState = append(patternState, parsed)
 		i++
 		j++
 	}
+	ctx.State[KeyPattern] = patternState
 	return true
 }

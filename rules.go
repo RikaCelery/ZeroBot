@@ -12,13 +12,9 @@ import (
 	"github.com/wdvxdr1123/ZeroBot/utils/helper"
 )
 
-const (
-	KEY_PATTERN = "pattern_matched"
-)
-
 // Type check the ctx.Event's type
-func Type(type_ string) Rule {
-	t := strings.SplitN(type_, "/", 3)
+func Type(typ string) Rule {
+	t := strings.SplitN(typ, "/", 3)
 	return func(ctx *Ctx) bool {
 		if len(t) > 0 && t[0] != ctx.Event.PostType {
 			return false
@@ -132,36 +128,6 @@ func RegexRule(regexPattern string) Rule {
 	}
 }
 
-// PatternRule check if the message can be matched by the pattern
-func PatternRule(pattern *Pattern) Rule {
-	return func(ctx *Ctx) bool {
-		if len(ctx.Event.Message) == 0 {
-			return false
-		}
-		// copy messages
-		msgs := make([]message.MessageSegment, 0, len(ctx.Event.Message))
-		msgs = append(msgs, ctx.Event.Message[0])
-		for i := 1; i < len(ctx.Event.Message); i++ {
-			if ctx.Event.Message[i-1].Type == "reply" && ctx.Event.Message[i].Type == "at" {
-				// [reply][at]
-				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"])
-				if reply.MessageId.ID() == 0 || reply.Sender == nil || reply.Sender.ID == 0 {
-					// failed to get history message
-					msgs = append(msgs, ctx.Event.Message[i])
-					continue
-				}
-				if strconv.FormatInt(reply.Sender.ID, 10) != ctx.Event.Message[i].Data["qq"] {
-					// @ other user in reply
-					msgs = append(msgs, ctx.Event.Message[i])
-				}
-			} else {
-				msgs = append(msgs, ctx.Event.Message[i])
-			}
-		}
-		return patternMatch(ctx, *pattern, msgs)
-	}
-}
-
 // ReplyRule check if the message is replying some message
 func ReplyRule(messageID int64) Rule {
 	return func(ctx *Ctx) bool {
@@ -214,9 +180,9 @@ func OnlyToMe(ctx *Ctx) bool {
 }
 
 // CheckUser only triggered by specific person
-func CheckUser(userId ...int64) Rule {
+func CheckUser(userID ...int64) Rule {
 	return func(ctx *Ctx) bool {
-		for _, uid := range userId {
+		for _, uid := range userID {
 			if ctx.Event.UserID == uid {
 				return true
 			}
@@ -226,9 +192,9 @@ func CheckUser(userId ...int64) Rule {
 }
 
 // CheckGroup only triggered in specific group
-func CheckGroup(grpId ...int64) Rule {
+func CheckGroup(grpID ...int64) Rule {
 	return func(ctx *Ctx) bool {
-		for _, gid := range grpId {
+		for _, gid := range grpID {
 			if ctx.Event.GroupID == gid {
 				return true
 			}
