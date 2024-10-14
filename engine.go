@@ -27,6 +27,10 @@ func (e *Engine) Delete() {
 	}
 }
 
+func (e *Engine) Count() int {
+	return len(e.matchers)
+}
+
 func (e *Engine) SetBlock(block bool) *Engine {
 	e.block = block
 	return e
