@@ -1,12 +1,13 @@
 package zero
 
 import (
-	log "github.com/sirupsen/logrus"
 	"hash/crc64"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/wdvxdr1123/ZeroBot/message"
 	"github.com/wdvxdr1123/ZeroBot/utils/helper"

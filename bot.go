@@ -318,7 +318,6 @@ loop:
 				}
 				break
 			}
-
 		}
 
 		// mid handler
