@@ -366,7 +366,7 @@ loop:
 		if matcher.Temp { // 临时 Matcher 删除
 			matcher.Delete()
 		}
-
+		log.Debugf("[bot] plugin triggered %s", m.Name)
 		if m.Engine != nil {
 			// post handler
 			for _, handler := range m.Engine.postHandler {

@@ -27,6 +27,10 @@ func (e *Engine) Delete() {
 	}
 }
 
+func (e *Engine) Count() int {
+	return len(e.matchers)
+}
+
 func (e *Engine) SetBlock(block bool) *Engine {
 	e.block = block
 	return e
@@ -77,7 +81,9 @@ func (e *Engine) On(typ string, rules ...Rule) *Matcher {
 func OnMessage(rules ...Rule) *Matcher { return On("message", rules...) }
 
 // OnMessage 消息触发器
-func (e *Engine) OnMessage(rules ...Rule) *Matcher { return e.On("message", rules...) }
+func (e *Engine) OnMessage(rules ...Rule) *Matcher {
+	return e.On("message", rules...)
+}
 
 // OnNotice 系统提示触发器
 func OnNotice(rules ...Rule) *Matcher { return On("notice", rules...) }
