@@ -194,6 +194,28 @@ func (p *Pattern) Text(regex string) *Pattern {
 	return p
 }
 
+// Command similar to `Text` but have a command prefix
+func (p *Pattern) Command(regex string) *Pattern {
+	re := regexp.MustCompile(regex)
+	p.Add("text", false, func(msg *message.Segment) PatternParsed {
+		s := msg.Data["text"]
+		s = strings.Trim(s, " \n\r\t")
+		if strings.HasPrefix(s, BotConfig.CommandPrefix) {
+			s = strings.TrimPrefix(s, BotConfig.CommandPrefix)
+		}
+		matchString := re.MatchString(s)
+		if matchString {
+			return PatternParsed{
+				value: re.FindStringSubmatch(s),
+				msg:   msg,
+			}
+		}
+
+		return PatternParsed{}
+	})
+	return p
+}
+
 func NewTextParser(regex string) Parser {
 	re := regexp.MustCompile(regex)
 	return func(msg *message.Segment) PatternParsed {
