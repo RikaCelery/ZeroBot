@@ -219,12 +219,12 @@ func TestPattern_Any(t *testing.T) {
 	})
 }
 func TestPatternParsed_Gets(t *testing.T) {
-	assert.Equal(t, []string{"gaga"}, PatternParsed{value: []string{"gaga"}}.Text())
-	assert.Equal(t, "image", PatternParsed{value: "image"}.Image())
-	assert.Equal(t, "reply", PatternParsed{value: "reply"}.Reply())
-	assert.Equal(t, "114514", PatternParsed{value: "114514"}.At())
+	assert.Equal(t, []string{"gaga"}, PatternParsed{Value: []string{"gaga"}}.Text())
+	assert.Equal(t, "image", PatternParsed{Value: "image"}.Image())
+	assert.Equal(t, "reply", PatternParsed{Value: "reply"}.Reply())
+	assert.Equal(t, "114514", PatternParsed{Value: "114514"}.At())
 	text := message.Text("1234")
-	assert.Equal(t, &text, PatternParsed{msg: &text}.Raw())
+	assert.Equal(t, &text, PatternParsed{Msg: &text}.Raw())
 }
 func TestPattern_SetOptional(t *testing.T) {
 	assert.Panics(t, func() {
@@ -237,32 +237,32 @@ func TestPattern_SetOptional(t *testing.T) {
 	}{
 		{[]message.Segment{message.Text("/do it")}, NewPattern(nil).Text("/(do) (.*)").At().SetOptional(true), []PatternParsed{
 			{
-				value: []string{"/do it", "do", "it"},
+				Value: []string{"/do it", "do", "it"},
 			}, {
-				value: nil,
+				Value: nil,
 			},
 		}},
 		{[]message.Segment{message.Text("/do it")}, NewPattern(nil).Text("/(do) (.*)").At().SetOptional(false), []PatternParsed{}},
 		{[]message.Segment{message.Text("happy bear"), message.At(114514)}, NewPattern(nil).Reply().SetOptional().Text(".+").SetOptional().At().SetOptional(false), []PatternParsed{
 			{
-				value: nil,
+				Value: nil,
 			},
 			{
-				value: "happy bear",
+				Value: "happy bear",
 			},
 			{
-				value: "114514",
+				Value: "114514",
 			},
 		}},
 		{[]message.Segment{message.Text("happy bear"), message.At(114514)}, NewPattern(nil).Image().SetOptional().Image().SetOptional().Image().SetOptional(), []PatternParsed{ // why you do this
 			{
-				value: nil,
+				Value: nil,
 			},
 			{
-				value: nil,
+				Value: nil,
 			},
 			{
-				value: nil,
+				Value: nil,
 			},
 		}},
 	}
@@ -283,8 +283,8 @@ func TestPattern_SetOptional(t *testing.T) {
 			assert.Equal(t, len(v.expected), len(parsed.Matched))
 			for i := range parsed.Matched {
 				t.Run(strconv.Itoa(i), func(t *testing.T) {
-					fmt.Println((parsed.Matched[i].value))
-					assert.Equal(t, v.expected[i].value != nil, parsed.Matched[i].value != nil)
+					fmt.Println((parsed.Matched[i].Value))
+					assert.Equal(t, v.expected[i].Value != nil, parsed.Matched[i].Value != nil)
 				})
 			}
 		})
@@ -300,32 +300,32 @@ func TestAllParse(t *testing.T) {
 	}{
 		{[]message.Segment{message.Text("test haha test"), message.At(123)}, NewPattern(nil).Text("((ha)+)").At(), []PatternParsed{
 			{
-				value: []string{"haha", "haha", "ha"},
+				Value: []string{"haha", "haha", "ha"},
 			}, {
-				value: "123",
+				Value: "123",
 			},
 		}},
 		{[]message.Segment{message.Text("haha")}, NewPattern(nil).Text("(h)(a)(h)(a)"), []PatternParsed{
 			{
-				value: []string{"haha", "h", "a", "h", "a"},
+				Value: []string{"haha", "h", "a", "h", "a"},
 			},
 		}},
 		{[]message.Segment{message.Reply("fake reply"), message.Image("fake image"), message.At(999), message.At(124), message.Text("haha")}, NewPattern(nil).Reply().Image().At().At(message.NewMessageIDFromInteger(124)).Text("(h)(a)(h)(a)"), []PatternParsed{
 
 			{
-				value: "fake reply",
+				Value: "fake reply",
 			},
 			{
-				value: "fake image",
+				Value: "fake image",
 			},
 			{
-				value: "999",
+				Value: "999",
 			},
 			{
-				value: "124",
+				Value: "124",
 			},
 			{
-				value: []string{"haha", "h", "a", "h", "a"},
+				Value: []string{"haha", "h", "a", "h", "a"},
 			},
 		}},
 	}
@@ -341,8 +341,8 @@ func TestAllParse(t *testing.T) {
 			}
 			assert.Equal(t, true, matched)
 			for i := range parsed.Matched {
-				assert.Equal(t, v.expected[i].value, parsed.Matched[i].value)
-				assert.Equal(t, &(v.msg[i]), parsed.Matched[i].msg)
+				assert.Equal(t, v.expected[i].Value, parsed.Matched[i].Value)
+				assert.Equal(t, &(v.msg[i]), parsed.Matched[i].Msg)
 			}
 		})
 	}

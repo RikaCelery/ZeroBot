@@ -137,45 +137,45 @@ func (p *Pattern) SetOptional(v ...bool) *Pattern {
 
 // PatternParsed PatternRule parse result
 type PatternParsed struct {
-	value any
-	msg   *message.Segment
+	Value any
+	Msg   *message.Segment
 }
 
 // Text 获取正则表达式匹配到的文本数组
 func (p PatternParsed) Text() []string {
-	if p.value == nil {
+	if p.Value == nil {
 		return nil
 	}
-	return p.value.([]string)
+	return p.Value.([]string)
 }
 
 // At 获取被@者ID
 func (p PatternParsed) At() string {
-	if p.value == nil {
+	if p.Value == nil {
 		return ""
 	}
-	return p.value.(string)
+	return p.Value.(string)
 }
 
 // Image 获取图片URL
 func (p PatternParsed) Image() string {
-	if p.value == nil {
+	if p.Value == nil {
 		return ""
 	}
-	return p.value.(string)
+	return p.Value.(string)
 }
 
 // Reply 获取被回复的消息ID
 func (p PatternParsed) Reply() string {
-	if p.value == nil {
+	if p.Value == nil {
 		return ""
 	}
-	return p.value.(string)
+	return p.Value.(string)
 }
 
 // Raw 获取原始消息
 func (p PatternParsed) Raw() *message.Segment {
-	return p.msg
+	return p.Msg
 }
 
 func (p *Pattern) Add(typ string, optional bool, parse Parser) *Pattern {
@@ -206,8 +206,8 @@ func (p *Pattern) Command(regex string) *Pattern {
 		matchString := re.MatchString(s)
 		if matchString {
 			return PatternParsed{
-				value: re.FindStringSubmatch(s),
-				msg:   msg,
+				Value: re.FindStringSubmatch(s),
+				Msg:   msg,
 			}
 		}
 
@@ -224,8 +224,8 @@ func NewTextParser(regex string) Parser {
 		matchString := re.MatchString(s)
 		if matchString {
 			return PatternParsed{
-				value: re.FindStringSubmatch(s),
-				msg:   msg,
+				Value: re.FindStringSubmatch(s),
+				Msg:   msg,
 			}
 		}
 
@@ -246,8 +246,8 @@ func NewAtParser(id ...message.ID) Parser {
 	return func(msg *message.Segment) PatternParsed {
 		if len(id) == 0 || len(id) == 1 && id[0].String() == msg.Data["qq"] {
 			return PatternParsed{
-				value: msg.Data["qq"],
-				msg:   msg,
+				Value: msg.Data["qq"],
+				Msg:   msg,
 			}
 		}
 		return PatternParsed{}
@@ -263,8 +263,8 @@ func (p *Pattern) Image() *Pattern {
 func NewImageParser() Parser {
 	return func(msg *message.Segment) PatternParsed {
 		return PatternParsed{
-			value: msg.Data["file"],
-			msg:   msg,
+			Value: msg.Data["file"],
+			Msg:   msg,
 		}
 	}
 }
@@ -278,8 +278,8 @@ func (p *Pattern) Reply() *Pattern {
 func NewReplyParser() Parser {
 	return func(msg *message.Segment) PatternParsed {
 		return PatternParsed{
-			value: msg.Data["id"],
-			msg:   msg,
+			Value: msg.Data["id"],
+			Msg:   msg,
 		}
 	}
 }
@@ -293,20 +293,20 @@ func (p *Pattern) Any() *Pattern {
 func NewAnyParser() Parser {
 	return func(msg *message.Segment) PatternParsed {
 		parsed := PatternParsed{
-			value: nil,
-			msg:   msg,
+			Value: nil,
+			Msg:   msg,
 		}
 		switch {
 		case msg.Data["text"] != "":
-			parsed.value = msg.Data["text"]
+			parsed.Value = msg.Data["text"]
 		case msg.Data["qq"] != "":
-			parsed.value = msg.Data["qq"]
+			parsed.Value = msg.Data["qq"]
 		case msg.Data["file"] != "":
-			parsed.value = msg.Data["file"]
+			parsed.Value = msg.Data["file"]
 		case msg.Data["id"] != "":
-			parsed.value = msg.Data["id"]
+			parsed.Value = msg.Data["id"]
 		default:
-			parsed.value = msg.Data
+			parsed.Value = msg.Data
 		}
 		return parsed
 	}
@@ -334,7 +334,7 @@ func patternMatch(ctx *Ctx, pattern Pattern, msgs []message.Segment) bool {
 		if j < len(msgs) && pattern.segments[i].matchType(msgs[j]) {
 			patternState[i] = pattern.segments[i].parse(&msgs[j])
 		}
-		if patternState[i].value == nil {
+		if patternState[i].Value == nil {
 			if pattern.segments[i].optional {
 				continue
 			}
