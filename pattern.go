@@ -202,6 +202,8 @@ func (p *Pattern) Command(regex string) *Pattern {
 		s = strings.Trim(s, " \n\r\t")
 		if strings.HasPrefix(s, BotConfig.CommandPrefix) {
 			s = strings.TrimPrefix(s, BotConfig.CommandPrefix)
+		} else {
+			return PatternParsed{}
 		}
 		matchString := re.MatchString(s)
 		if matchString {
