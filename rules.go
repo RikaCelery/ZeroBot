@@ -299,6 +299,8 @@ func HasPicture(ctx *Ctx) bool {
 		if elem.Type == "image" {
 			if elem.Data["url"] != "" {
 				urls = append(urls, elem.Data["url"])
+			} else if elem.Data["file"] != "" {
+				urls = append(urls, elem.Data["file"])
 			}
 		}
 	}
