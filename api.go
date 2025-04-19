@@ -56,7 +56,9 @@ func (ctx *Ctx) CallAction(action string, params Params) APIResponse {
 		Params: params,
 	}
 	rsp, err := ctx.caller.CallAPI(req)
-	log.Warnln("[api] 调用", action, "参数: ", params, "时出现错误: ", err)
+	if err != nil {
+		log.Warnln("[api] 调用", action, "时出现错误:", err)
+	}
 	if err == nil && rsp.RetCode != 0 {
 		log.Errorln("[api] 调用", action, "时出现错误, 返回值:", rsp.RetCode, ", 信息:", rsp.Msg, "解释:", rsp.Wording)
 
