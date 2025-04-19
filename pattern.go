@@ -31,14 +31,14 @@ func (p *Pattern) AsRule() Rule {
 				// anyone: [reply][at]
 				// owner: [reply][atall] (lagrange)
 				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"], true)
-				if reply.MessageID.ID() != 0 && reply.Sender != nil && (reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] ||
-					ctx.Event.Message[i].Data["qq"] == "all" ||
-					ctx.Event.Message[i].Data["qq"] == "0") {
+				qq := ctx.Event.Message[i].Data["qq"]
+				if reply.MessageID.ID() != 0 && reply.Sender != nil &&
+					(reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == qq || qq == "all" || qq == "0") {
 					continue
 				}
 
 			}
-			if ctx.Event.Message[i].Type == "text" && atRegexp.MatchString(ctx.Event.Message[i].Data["text"]) {
+			if p.fuzzyAt && ctx.Event.Message[i].Type == "text" && atRegexp.MatchString(ctx.Event.Message[i].Data["text"]) {
 				// xxxx @11232123 xxxxx
 				msgs = append(msgs, ctx.splitAtInText(i)...)
 				continue
