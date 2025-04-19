@@ -28,11 +28,16 @@ func (p *Pattern) AsRule() Rule {
 		msgs := make([]message.Segment, 0, len(ctx.Event.Message))
 		for i := 0; i < len(ctx.Event.Message); i++ {
 			if i > 0 && ctx.Event.Message[i-1].Type == "reply" && ctx.Event.Message[i].Type == "at" {
-				// [reply][at]
+				// anyone: [reply][at]
+				// owner: [reply][atall] (lagrange)
 				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"], true)
-				if reply.MessageID.ID() != 0 && reply.Sender != nil && reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] {
+				if reply.MessageID.ID() != 0 && reply.Sender != nil &&
+					(reply.Sender.Name() == "@"+ctx.Event.Message[i].Data["name"] ||
+						reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] ||
+						reply.Sender.Role == "owner" && ctx.Event.Message[i].Data["qq"] == "all") {
 					continue
 				}
+
 			}
 			if ctx.Event.Message[i].Type == "text" && atRegexp.MatchString(ctx.Event.Message[i].Data["text"]) {
 				// xxxx @11232123 xxxxx
