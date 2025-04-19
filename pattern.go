@@ -31,10 +31,9 @@ func (p *Pattern) AsRule() Rule {
 				// anyone: [reply][at]
 				// owner: [reply][atall] (lagrange)
 				reply := ctx.GetMessage(ctx.Event.Message[i-1].Data["id"], true)
-				if reply.MessageID.ID() != 0 && reply.Sender != nil &&
-					(reply.Sender.Name() == "@"+ctx.Event.Message[i].Data["name"] ||
-						reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] ||
-						reply.Sender.Role == "owner" && ctx.Event.Message[i].Data["qq"] == "all") {
+				if reply.MessageID.ID() != 0 && reply.Sender != nil && (reply.Sender.ID != 0 && strconv.FormatInt(reply.Sender.ID, 10) == ctx.Event.Message[i].Data["qq"] ||
+					ctx.Event.Message[i].Data["qq"] == "all" ||
+					ctx.Event.Message[i].Data["qq"] == "0") {
 					continue
 				}
 
