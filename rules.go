@@ -104,9 +104,6 @@ func CommandRule(commands ...string) Rule {
 					return true
 				}
 				arg := strings.TrimLeft(cmdMessage[len(command)+1:], " ")
-				if len(ctx.Event.Message) > 1 {
-					arg += ctx.Event.Message[1:].ExtractPlainText()
-				}
 				ctx.State["args"] = arg
 				log.Debugf("[matcher.CommandRule] triggered %s, arg %s", command, arg)
 				return true
