@@ -90,20 +90,15 @@ func CommandRule(commands ...string) Rule {
 		if len(ctx.Event.Message) == 0 {
 			return false
 		}
-		firstMessage := strings.TrimSpace(ctx.ExtractPlainText())
-		if !strings.HasPrefix(firstMessage, BotConfig.CommandPrefix) {
+		msg := strings.TrimSpace(ctx.ExtractPlainText())
+		if !strings.HasPrefix(msg, BotConfig.CommandPrefix) {
 			return false
 		}
-		cmdMessage := firstMessage[len(BotConfig.CommandPrefix):]
+		cmdMessage := msg[len(BotConfig.CommandPrefix):]
 		for _, command := range commands {
 			if strings.HasPrefix(cmdMessage, command+" ") || strings.TrimSpace(cmdMessage) == command {
 				ctx.State["command"] = command
-				if strings.TrimSpace(cmdMessage) == command {
-					ctx.State["args"] = ""
-					log.Debugf("[matcher.CommandRule] triggered %s, args ", command)
-					return true
-				}
-				arg := strings.TrimLeft(cmdMessage[len(command)+1:], " ")
+				arg := strings.TrimSpace(cmdMessage[len(command):])
 				ctx.State["args"] = arg
 				log.Debugf("[matcher.CommandRule] triggered %s, arg %s", command, arg)
 				return true
